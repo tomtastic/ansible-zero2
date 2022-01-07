@@ -21,32 +21,26 @@ fi
 /usr/bin/tvservice -o
 
 # Parse USB requests in dmesg
-/home/pi/usb_fingerprint.sh | tee /tmp/os.fingerprint
+bash /home/pi/usb_fingerprint.sh > /tmp/os.fingerprint 2>&1
 
 # Stop the dummy gadget and start the real one
 modprobe -r g_ether
 modprobe libcomposite
 
 # libcomposite configuration
-/home/pi/gadget.sh | tee /home/pi/gadget.log
+bash /home/pi/ansible-zero2/files/gadget.sh > /tmp/gadget.log 2>&1
 
 # Start bridge interface
 ifup br0
 ifconfig br0 up
 
 # Clear leases
-#rm -f /var/lib/dhcp/dhcpd.leases
-#touch /var/lib/dhcp/dhcpd.leases
+rm -f /var/lib/dhcp/dhcpd.leases
+touch /var/lib/dhcp/dhcpd.leases
 
 # Start the DHCP server
-#/sbin/route add -net 0.0.0.0/0 br0
 #/etc/init.d/isc-dhcp-server start
 # Set some other paramaters
-#/sbin/sysctl -w net.ipv4.ip_forward=1
-# Start some servers
-
-# Enable Serial
-systemctl enable getty@ttyGS0.service
-systemctl start getty@ttyGS0.service
+/sbin/sysctl -w net.ipv4.ip_forward=1
 
 exit 0
