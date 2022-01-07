@@ -23,23 +23,24 @@ fi
 # Parse USB requests in dmesg
 bash /home/pi/usb_fingerprint.sh > /tmp/os.fingerprint 2>&1
 
-# Stop the dummy gadget and start the real one
-modprobe -r g_ether
+# Loading our dummy g_serial gadget (from /etc/modules) should have provided
+# a USB fingerprint of our connected host machine, now we can unload that
+# and configure libcomposite according to the host OS (eg. Win gets RNDIS)
+modprobe -r g_serial
 modprobe libcomposite
 
 # libcomposite configuration
 bash /home/pi/ansible-zero2/files/gadget.sh > /tmp/gadget.log 2>&1
 
-# Start bridge interface
-ifup br0
-ifconfig br0 up
+# Start bridge interface by restarting systemd.networking
+service networking restart || true
 
 # Clear leases
-rm -f /var/lib/dhcp/dhcpd.leases
-touch /var/lib/dhcp/dhcpd.leases
+#rm -f /var/lib/dhcp/dhcpd.leases
+#touch /var/lib/dhcp/dhcpd.leases
 
-# Start the DHCP server
-#/etc/init.d/isc-dhcp-server start
+# Start the DHCP server for our bridge
+service isc-dhcp-server start
 # Set some other paramaters
 /sbin/sysctl -w net.ipv4.ip_forward=1
 
