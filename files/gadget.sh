@@ -89,7 +89,7 @@ function RNDIS_CONFIG () {
     echo "$MASS_STORAGE0" > functions/mass_storage.usb0/lun.0/file
 
     ## Initialise the configs
-    #ln -s configs/c.1 os_desc
+    ln -s configs/c.1 os_desc
     echo "$MAX_POWER" > configs/c."$NUM"/MaxPower
     ln -s functions/rndis.usb0 configs/c."$NUM"
     ln -s functions/acm.usb0 configs/c."$NUM"
@@ -124,7 +124,6 @@ function NCM_CONFIG () {
     echo "$MASS_STORAGE0" > functions/mass_storage.usb0/lun.0/file
 
     ## Initialise the configs
-    #ln -s configs/c.1 os_desc
     echo "$MAX_POWER" > configs/c."$NUM"/MaxPower
     ln -s functions/ncm.usb0 configs/c."$NUM"
     ln -s functions/acm.usb0 configs/c."$NUM"
