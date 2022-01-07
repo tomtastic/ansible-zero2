@@ -19,11 +19,12 @@ CONFIGFS_HOME="/sys/kernel/config"
 GADGET_DIR="$CONFIGFS_HOME"/usb_gadget/"$GADGET_NAME"
 GADGET_LANG="0x409" # English language strings
 BCD_USB="0x0200" # USB2
-BCD_DEVICE="0x3066" # ?
-B_DEVICECLASS="0x02"
-B_DEVICESUBCLASS="0x00"
-ID_VENDOR="0x1d6b" # ?
-ID_PRODUCT="0x0104" # ?
+BCD_DEVICE="0x0100" # version number ?
+B_DEVICECLASS="0xEF" # ? To allow recognition by Windows ?
+B_DEVICESUBCLASS="0x02" # ? To allow recognition by Windows ?
+B_DEVICEPROTOCOL="0x01" # ? To allow recognition by Windows ?
+ID_VENDOR="0x1d6b" # Linux Foundation
+ID_PRODUCT="0x0104" # Multifunction Composite Gadget
 SERIAL=$(awk -F": " '/^Serial/ {print $2}' /proc/cpuinfo)
 MAX_POWER=250
 
@@ -34,6 +35,7 @@ echo "$BCD_USB" > bcdUSB
 echo "$BCD_DEVICE" > bcdDevice
 echo "$B_DEVICECLASS" > bDeviceClass
 echo "$B_DEVICESUBCLASS" > bDeviceSubClass
+echo "$B_DEVICEPROTOCOL" > bDeviceProtocol
 echo "$ID_VENDOR" > idVendor
 echo "$ID_PRODUCT" > idProduct
 mkdir -p strings/"$GADGET_LANG"
@@ -45,8 +47,9 @@ echo "$PRODUCT" > strings/"$GADGET_LANG"/product
 # If we're not connected to MacOS, configure an RNDIS-type adapter
 if [[ "$OS" != "MacOS" ]]; then
     #### CONFIG 1 ####
+    echo "[+] Configuring gadget(Ethernet[rndis])"
     mkdir -p configs/c.1/strings/"$GADGET_LANG"
-    echo "CDC ACM+MassStorage+RNDIS" > configs/c.1/strings/"$GADGET_LANG"/configuration
+    echo "CDC RNDIS, MassStorage and ACM" > configs/c.1/strings/"$GADGET_LANG"/configuration
     echo "$MAX_POWER" > configs/c.1/MaxPower
     mkdir -p functions/rndis.usb0
     echo "$HOST" > functions/rndis.usb0/host_addr
@@ -64,13 +67,15 @@ mkdir -p configs/c.2/strings/"$GADGET_LANG"
 
 #### --> Ethernet gadget
 # We'll always also configure an NCM-type adapter
-echo "CDC ACM+MassStorage+NCM" > configs/c.2/strings/"$GADGET_LANG"/configuration
+echo "[+] Configuring gadget(Ethernet[ncm])"
+echo "CDC NCM, MassStorage and ACM" > configs/c.2/strings/"$GADGET_LANG"/configuration
 echo "$MAX_POWER" > configs/c.2/MaxPower
 mkdir -p functions/ncm.usb0
 echo "$HOST" > functions/ncm.usb0/host_addr
 echo "$SELF1" > functions/ncm.usb0/dev_addr
 
 #### --> Serial gadget
+echo "[+] Configuring gadget(Serial[acm])"
 mkdir -p functions/acm.usb0
 
 #### --> Mass Storage gadget
@@ -85,6 +90,7 @@ if [[ ! -f "$MASS_STORAGE0" ]]; then
     losetup -d /dev/loop0
 fi
 
+echo "[+] Configuring gadget(mass storage)"
 mkdir -p functions/mass_storage.usb0
 echo 1 > functions/mass_storage.usb0/stall
 echo 0 > functions/mass_storage.usb0/lun.0/cdrom
@@ -105,9 +111,14 @@ ln -s functions/ncm.usb0 configs/c.2
 ln -s functions/acm.usb0 configs/c.2
 ln -s functions/mass_storage.usb0 configs/c.2
 
-#udevadm settle -t 5 || true
+echo "[+] Enabling gadgets"
 basename "$(find /sys/class/udc -type l)" > UDC
+udevadm settle -t 5 || true
 
 # Enable Serial
-systemctl enable getty@ttyGS0.service
-systemctl start getty@ttyGS0.service
+echo "[+] Enabling getty service"
+systemctl enable getty@ttyGS0.service || true
+#systemctl start getty@ttyGS0.service || true
+
+echo "[+] Gadget script done"
+exit 0
