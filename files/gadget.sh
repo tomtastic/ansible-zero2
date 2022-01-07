@@ -2,6 +2,8 @@
 # Configure USB gadgets (run as root from /etc/rc.local)
 
 ### Configuring USB gadgets via ConfigFS
+# We only have one available UDC (USB Device Controller), so all gadgets
+# have to be held within configurations
 
 #### Define our composite gadget parameters
 GADGET_NAME="zero2"
@@ -12,6 +14,17 @@ SELF0="42:61:64:55:53:42" # "USB0"
 SELF1="42:61:64:55:53:43" # "USB1"
 MASS_STORAGE0="/home/pi/mass_storage.lun0"
 SCSI_INQUIRY="Zero2 Mass Storage"
+
+### Create a sparse file for the mass storage gadget
+if [[ ! -f "$MASS_STORAGE0" ]]; then
+    # 8GB seems plenty?
+    dd if=/dev/zero of="$MASS_STORAGE0" bs=1M seek=8192 count=0
+    #echo <<EOFCAT | fdisk -u "$MASS_STORAGE0"
+    #EOFCAT
+    losetup -o 4096 /dev/loop0 "$MASS_STORAGE0"
+    mkdosfs -v /dev/loop0 -S 4096 -g 64/8 -n ZERO2USB
+    losetup -d /dev/loop0
+fi
 
 # Dont touch these...
 OS=$(cat /tmp/os.fingerprint)
@@ -43,75 +56,92 @@ echo "$SERIAL" > strings/"$GADGET_LANG"/serialnumber
 echo "$MANUFACTURER" > strings/"$GADGET_LANG"/manufacturer
 echo "$PRODUCT" > strings/"$GADGET_LANG"/product
 
-#### --> Ethernet gadget
-# If we're not connected to MacOS, configure an RNDIS-type adapter
-if [[ "$OS" != "MacOS" ]]; then
-    #### CONFIG 1 ####
+
+function RNDIS_CONFIG () {
+    #### CONFIG - RNDIS , ACM, STORAGE ####
+    NUM=$1
     echo "[+] Configuring gadget(Ethernet[rndis])"
-    mkdir -p configs/c.1/strings/"$GADGET_LANG"
-    echo "CDC RNDIS, MassStorage and ACM" > configs/c.1/strings/"$GADGET_LANG"/configuration
-    echo "$MAX_POWER" > configs/c.1/MaxPower
+    mkdir -p configs/c."$NUM"/strings/"$GADGET_LANG"
+    echo "RNDIS and ACM and MASS_STORAGE" > configs/c."$NUM"/strings/"$GADGET_LANG"/configuration
     mkdir -p functions/rndis.usb0
     echo "$HOST" > functions/rndis.usb0/host_addr
     echo "$SELF0" > functions/rndis.usb0/dev_addr
     echo "RNDIS" > functions/rndis.usb0/os_desc/interface.rndis/compatible_id
     echo "5162001" > functions/rndis.usb0/os_desc/interface.rndis/sub_compatible_id
-    echo "0x80" > configs/c.1/bmAttributes # Bus Powered
+    echo "0x80" > configs/c."$NUM"/bmAttributes # Bus Powered
     echo "0xcd" > os_desc/b_vendor_code # Microsoft
     echo "MSFT100" > os_desc/qw_sign # Microsoft
     echo "1" > os_desc/use
-fi
 
-#### CONFIG 2 ####
-mkdir -p configs/c.2/strings/"$GADGET_LANG"
+    #### --> Serial gadget
+    echo "[+] Configuring gadget(Serial[acm])"
+    mkdir -p functions/acm.usb0
 
-#### --> Ethernet gadget
-# We'll always also configure an NCM-type adapter
-echo "[+] Configuring gadget(Ethernet[ncm])"
-echo "CDC NCM, MassStorage and ACM" > configs/c.2/strings/"$GADGET_LANG"/configuration
-echo "$MAX_POWER" > configs/c.2/MaxPower
-mkdir -p functions/ncm.usb0
-echo "$HOST" > functions/ncm.usb0/host_addr
-echo "$SELF1" > functions/ncm.usb0/dev_addr
+    #### --> Mass Storage gadget
+    echo "[+] Configuring gadget(mass storage)"
+    mkdir -p functions/mass_storage.usb0
+    echo 1 > functions/mass_storage.usb0/stall
+    echo 0 > functions/mass_storage.usb0/lun.0/cdrom
+    echo 0 > functions/mass_storage.usb0/lun.0/ro
+    echo 0 > functions/mass_storage.usb0/lun.0/nofua
+    echo 1 > functions/mass_storage.usb0/lun.0/removable
+    echo "$SCSI_INQUIRY" > functions/mass_storage.usb0/lun.0/inquiry_string
+    echo "$MASS_STORAGE0" > functions/mass_storage.usb0/lun.0/file
 
-#### --> Serial gadget
-echo "[+] Configuring gadget(Serial[acm])"
-mkdir -p functions/acm.usb0
+    ## Initialise the configs
+    #ln -s configs/c.1 os_desc
+    echo "$MAX_POWER" > configs/c."$NUM"/MaxPower
+    ln -s functions/rndis.usb0 configs/c."$NUM"
+    ln -s functions/acm.usb0 configs/c."$NUM"
+    ln -s functions/mass_storage.usb0 configs/c."$NUM"
+}
 
-#### --> Mass Storage gadget
-### Create a sparse file for the mass storage gadget
-if [[ ! -f "$MASS_STORAGE0" ]]; then
-    # 8GB seems plenty?
-    dd if=/dev/zero of="$MASS_STORAGE0" bs=1M seek=8192 count=0
-    #echo <<EOFCAT | fdisk -u "$MASS_STORAGE0"
-    #EOFCAT
-    losetup -o 4096 /dev/loop0 "$MASS_STORAGE0"
-    mkdosfs -v /dev/loop0 -S 4096 -g 64/8 -n ZERO2USB
-    losetup -d /dev/loop0
-fi
 
-echo "[+] Configuring gadget(mass storage)"
-mkdir -p functions/mass_storage.usb0
-echo 1 > functions/mass_storage.usb0/stall
-echo 0 > functions/mass_storage.usb0/lun.0/cdrom
-echo 0 > functions/mass_storage.usb0/lun.0/ro
-echo 0 > functions/mass_storage.usb0/lun.0/nofua
-echo 1 > functions/mass_storage.usb0/lun.0/removable
-echo "$SCSI_INQUIRY" > functions/mass_storage.usb0/lun.0/inquiry_string
-echo "$MASS_STORAGE0" > functions/mass_storage.usb0/lun.0/file
+function NCM_CONFIG () {
+    #### CONFIG - NCM , ACM, STORAGE ####
+    NUM=$1
+    #### --> Ethernet gadget
+    mkdir -p configs/c."$NUM"/strings/"$GADGET_LANG"
+    echo "NCM and ACM and MASS_STORAGE" > configs/c."$NUM"/strings/"$GADGET_LANG"/configuration
+    echo "[+] Configuring gadget(Ethernet[ncm])"
+    mkdir -p functions/ncm.usb0 2>/dev/null
+    echo "$HOST" > functions/ncm.usb0/host_addr
+    echo "$SELF1" > functions/ncm.usb0/dev_addr
 
-## Initialise the config
-if [[ "$OS" != "MacOS" ]]; then
-    ln -s configs/c.1 os_desc
-    ln -s functions/rndis.usb0 configs/c.1
+    #### --> Serial gadget
+    echo "[+] Configuring gadget(Serial[acm])"
+    mkdir -p functions/acm.usb0 2>/dev/null
+
+    #### --> Mass Storage gadget
+    echo "[+] Configuring gadget(mass storage)"
+    mkdir -p functions/mass_storage.usb0 2>/dev/null
+    echo 1 > functions/mass_storage.usb0/stall
+    echo 0 > functions/mass_storage.usb0/lun.0/cdrom
+    echo 0 > functions/mass_storage.usb0/lun.0/ro
+    echo 0 > functions/mass_storage.usb0/lun.0/nofua
+    echo 1 > functions/mass_storage.usb0/lun.0/removable
+    echo "$SCSI_INQUIRY" > functions/mass_storage.usb0/lun.0/inquiry_string
+    echo "$MASS_STORAGE0" > functions/mass_storage.usb0/lun.0/file
+
+    ## Initialise the configs
+    #ln -s configs/c.1 os_desc
+    echo "$MAX_POWER" > configs/c."$NUM"/MaxPower
+    ln -s functions/ncm.usb0 configs/c."$NUM"
+    ln -s functions/acm.usb0 configs/c."$NUM"
+    ln -s functions/mass_storage.usb0 configs/c."$NUM"
+}
+
+if [[ "$OS" == "MacOS" ]]; then
+    echo "[+] Enabling MacOS gadget as first config in $(pwd)"
+    NCM_CONFIG 1
+    RNDIS_CONFIG 2
 else
-    ln -s configs/c.2 os_desc
+    echo "[+] Enabling Linux/Win gadget as first config in $(pwd)"
+    RNDIS_CONFIG 1
+    NCM_CONFIG 2
 fi
-ln -s functions/ncm.usb0 configs/c.2
-ln -s functions/acm.usb0 configs/c.2
-ln -s functions/mass_storage.usb0 configs/c.2
 
-echo "[+] Enabling gadgets"
+echo "[+] Enabling gadget"
 basename "$(find /sys/class/udc -type l)" > UDC
 udevadm settle -t 5 || true
 
