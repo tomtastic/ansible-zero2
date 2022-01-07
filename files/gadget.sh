@@ -8,7 +8,7 @@
 #### Define our composite gadget parameters
 GADGET_NAME="zero2"
 MANUFACTURER="Raspberry"
-PRODUCT="PiZero2 Composite Gadget"
+PRODUCT="PiZero2 Gadget"
 HOST="48:6f:73:74:50:43" # "HostPC"
 SELF0="42:61:64:55:53:42" # "USB0"
 SELF1="42:61:64:55:53:43" # "USB1"
@@ -33,9 +33,9 @@ GADGET_DIR="$CONFIGFS_HOME"/usb_gadget/"$GADGET_NAME"
 GADGET_LANG="0x409" # English language strings
 BCD_USB="0x0200" # USB2
 BCD_DEVICE="0x0100" # version number ?
-B_DEVICECLASS="0xEF" # ? To allow recognition by Windows ?
-B_DEVICESUBCLASS="0x02" # ? To allow recognition by Windows ?
-B_DEVICEPROTOCOL="0x01" # ? To allow recognition by Windows ?
+B_DEVICECLASS="0xEF" # For Windows compatible identifier of 'USB\COMPOSITE'
+B_DEVICESUBCLASS="0x02" # For Windows compatible identifier of 'USB\COMPOSITE'
+B_DEVICEPROTOCOL="0x01" # For Windows compatible identifier of 'USB\COMPOSITE'
 ID_VENDOR="0x1d6b" # Linux Foundation
 ID_PRODUCT="0x0104" # Multifunction Composite Gadget
 SERIAL=$(awk -F": " '/^Serial/ {print $2}' /proc/cpuinfo)
@@ -133,11 +133,11 @@ function NCM_CONFIG () {
 if [[ "$OS" == "MacOS" ]]; then
     echo "[+] Enabling MacOS gadget as first config in $(pwd)"
     NCM_CONFIG 1
-    RNDIS_CONFIG 2
+    #RNDIS_CONFIG 2
 else
     echo "[+] Enabling Linux/Win gadget as first config in $(pwd)"
     RNDIS_CONFIG 1
-    NCM_CONFIG 2
+    #NCM_CONFIG 2
 fi
 
 echo "[+] Enabling gadget"
