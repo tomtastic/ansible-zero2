@@ -33,6 +33,7 @@ modprobe libcomposite
 bash /home/pi/ansible-zero2/files/gadget.sh start > /tmp/gadget.log 2>&1
 
 # Start usb0 interface by restarting systemd.networking
+ifup --verbose usb0 >> /tmp/gadget.log 2>&1
 service networking restart || true
 
 # Clear leases

@@ -162,9 +162,23 @@ function gadget_start () {
         RNDIS_CONFIG_START
     fi
 
+    c=5
+    while [ "$c" -gt 0 ]; do
+        echo "Waiting for usb0...." >> /tmp/ifconfig.log
+        USB_FOUND=$(ifconfig -a | grep -A1 usb0 || true)
+        if [ "$USB_FOUND" ]; then
+            echo "$USB_FOUND" >> /tmp/ifconfig.log
+            break
+        else
+            echo "Didn't find usb0 yet, sleeping..." >> /tmp/ifconfig.log
+            sleep 1
+            c=$((c-1))
+        fi
+    done
+
     # Enable Serial
     echo "[+] Starting getty service"
-    systemctl start getty@ttyGS0.service || true
+    timeout 5 systemctl start getty@ttyGS0.service || true
 }
 
 function gadget_stop () {
