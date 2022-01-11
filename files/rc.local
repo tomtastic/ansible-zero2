@@ -32,14 +32,14 @@ modprobe libcomposite
 # libcomposite configuration
 bash /home/pi/ansible-zero2/files/gadget.sh start > /tmp/gadget.log 2>&1
 
-# Start bridge interface by restarting systemd.networking
+# Start usb0 interface by restarting systemd.networking
 service networking restart || true
 
 # Clear leases
 #rm -f /var/lib/dhcp/dhcpd.leases
 #touch /var/lib/dhcp/dhcpd.leases
 
-# Start the DHCP server for our bridge
+# Start the DHCP server for the usb0 gadget interface
 service isc-dhcp-server start
 # Set some other paramaters
 /sbin/sysctl -w net.ipv4.ip_forward=1
