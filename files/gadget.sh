@@ -2,83 +2,22 @@
 # Configure USB gadgets (run as root from /etc/rc.local)
 
 ### Configuring USB gadgets via ConfigFS
+# NB:
+#
+# 1) We only have one available UDC (USB Device Controller), so all gadgets
+#    have to be held within configurations under a single UDC.
+# 2) Windows composite gadgets must have just one configuration
 
 #### Define our composite gadget parameters
 GADGET_NAME="zero2"
 MANUFACTURER="Raspberry"
-PRODUCT="PiZero2 Composite Gadget"
+PRODUCT="PiZero2 Gadget"
 HOST="48:6f:73:74:50:43" # "HostPC"
 SELF0="42:61:64:55:53:42" # "USB0"
 SELF1="42:61:64:55:53:43" # "USB1"
 MASS_STORAGE0="/home/pi/mass_storage.lun0"
 SCSI_INQUIRY="Zero2 Mass Storage"
 
-# Dont touch these...
-OS=$(cat /tmp/os.fingerprint)
-CONFIGFS_HOME="/sys/kernel/config"
-GADGET_DIR="$CONFIGFS_HOME"/usb_gadget/"$GADGET_NAME"
-GADGET_LANG="0x409" # English language strings
-BCD_USB="0x0200" # USB2
-BCD_DEVICE="0x0100" # version number ?
-B_DEVICECLASS="0xEF" # ? To allow recognition by Windows ?
-B_DEVICESUBCLASS="0x02" # ? To allow recognition by Windows ?
-B_DEVICEPROTOCOL="0x01" # ? To allow recognition by Windows ?
-ID_VENDOR="0x1d6b" # Linux Foundation
-ID_PRODUCT="0x0104" # Multifunction Composite Gadget
-SERIAL=$(awk -F": " '/^Serial/ {print $2}' /proc/cpuinfo)
-MAX_POWER=250
-
-#### Create a composite gadget
-mkdir -p "$GADGET_DIR" || exit 1
-cd "$GADGET_DIR" || exit 1
-echo "$BCD_USB" > bcdUSB
-echo "$BCD_DEVICE" > bcdDevice
-echo "$B_DEVICECLASS" > bDeviceClass
-echo "$B_DEVICESUBCLASS" > bDeviceSubClass
-echo "$B_DEVICEPROTOCOL" > bDeviceProtocol
-echo "$ID_VENDOR" > idVendor
-echo "$ID_PRODUCT" > idProduct
-mkdir -p strings/"$GADGET_LANG"
-echo "$SERIAL" > strings/"$GADGET_LANG"/serialnumber
-echo "$MANUFACTURER" > strings/"$GADGET_LANG"/manufacturer
-echo "$PRODUCT" > strings/"$GADGET_LANG"/product
-
-#### --> Ethernet gadget
-# If we're not connected to MacOS, configure an RNDIS-type adapter
-if [[ "$OS" != "MacOS" ]]; then
-    #### CONFIG 1 ####
-    echo "[+] Configuring gadget(Ethernet[rndis])"
-    mkdir -p configs/c.1/strings/"$GADGET_LANG"
-    echo "CDC RNDIS, MassStorage and ACM" > configs/c.1/strings/"$GADGET_LANG"/configuration
-    echo "$MAX_POWER" > configs/c.1/MaxPower
-    mkdir -p functions/rndis.usb0
-    echo "$HOST" > functions/rndis.usb0/host_addr
-    echo "$SELF0" > functions/rndis.usb0/dev_addr
-    echo "RNDIS" > functions/rndis.usb0/os_desc/interface.rndis/compatible_id
-    echo "5162001" > functions/rndis.usb0/os_desc/interface.rndis/sub_compatible_id
-    echo "0x80" > configs/c.1/bmAttributes # Bus Powered
-    echo "0xcd" > os_desc/b_vendor_code # Microsoft
-    echo "MSFT100" > os_desc/qw_sign # Microsoft
-    echo "1" > os_desc/use
-fi
-
-#### CONFIG 2 ####
-mkdir -p configs/c.2/strings/"$GADGET_LANG"
-
-#### --> Ethernet gadget
-# We'll always also configure an NCM-type adapter
-echo "[+] Configuring gadget(Ethernet[ncm])"
-echo "CDC NCM, MassStorage and ACM" > configs/c.2/strings/"$GADGET_LANG"/configuration
-echo "$MAX_POWER" > configs/c.2/MaxPower
-mkdir -p functions/ncm.usb0
-echo "$HOST" > functions/ncm.usb0/host_addr
-echo "$SELF1" > functions/ncm.usb0/dev_addr
-
-#### --> Serial gadget
-echo "[+] Configuring gadget(Serial[acm])"
-mkdir -p functions/acm.usb0
-
-#### --> Mass Storage gadget
 ### Create a sparse file for the mass storage gadget
 if [[ ! -f "$MASS_STORAGE0" ]]; then
     # 8GB seems plenty?
@@ -90,35 +29,166 @@ if [[ ! -f "$MASS_STORAGE0" ]]; then
     losetup -d /dev/loop0
 fi
 
-echo "[+] Configuring gadget(mass storage)"
-mkdir -p functions/mass_storage.usb0
-echo 1 > functions/mass_storage.usb0/stall
-echo 0 > functions/mass_storage.usb0/lun.0/cdrom
-echo 0 > functions/mass_storage.usb0/lun.0/ro
-echo 0 > functions/mass_storage.usb0/lun.0/nofua
-echo 1 > functions/mass_storage.usb0/lun.0/removable
-echo "$SCSI_INQUIRY" > functions/mass_storage.usb0/lun.0/inquiry_string
-echo "$MASS_STORAGE0" > functions/mass_storage.usb0/lun.0/file
+# Dont touch these...
+COMMAND="$1" # 'start' or 'stop'
+OS=$(cat /tmp/os.fingerprint)
+CONFIGFS_HOME="/sys/kernel/config"
+GADGET="$CONFIGFS_HOME"/usb_gadget/"$GADGET_NAME"
+GADGET_LANG="0x409" # English language strings
+BCD_USB="0x0200" # USB2
+BCD_DEVICE="0x0100" # version number ?
+B_DEVICECLASS="0xEF" # For Windows compatible identifier of 'USB\COMPOSITE'
+B_DEVICESUBCLASS="0x02" # For Windows compatible identifier of 'USB\COMPOSITE'
+B_DEVICEPROTOCOL="0x01" # For Windows compatible identifier of 'USB\COMPOSITE'
+ID_VENDOR="0x1d6b" # Linux Foundation
+ID_PRODUCT="0x0104" # Multifunction Composite Gadget
+SERIAL=$(awk -F": " '/^Serial/ {print $2}' /proc/cpuinfo)
+MAX_POWER=250
 
-## Initialise the config
-if [[ "$OS" != "MacOS" ]]; then
-    ln -s configs/c.1 os_desc
-    ln -s functions/rndis.usb0 configs/c.1
-else
-    ln -s configs/c.2 os_desc
-fi
-ln -s functions/ncm.usb0 configs/c.2
-ln -s functions/acm.usb0 configs/c.2
-ln -s functions/mass_storage.usb0 configs/c.2
+#### Create a composite gadget
+mkdir -p "$GADGET" || exit 1
+echo "$BCD_USB" > "$GADGET"/bcdUSB
+echo "$BCD_DEVICE" > "$GADGET"/bcdDevice
+echo "$B_DEVICECLASS" > "$GADGET"/bDeviceClass
+echo "$B_DEVICESUBCLASS" > "$GADGET"/bDeviceSubClass
+echo "$B_DEVICEPROTOCOL" > "$GADGET"/bDeviceProtocol
+echo "$ID_VENDOR" > "$GADGET"/idVendor
+echo "$ID_PRODUCT" > "$GADGET"/idProduct
+mkdir -p "$GADGET"/strings/"$GADGET_LANG" || exit 1
+echo "$SERIAL" > "$GADGET"/strings/"$GADGET_LANG"/serialnumber
+echo "$MANUFACTURER" > "$GADGET"/strings/"$GADGET_LANG"/manufacturer
+echo "$PRODUCT" > "$GADGET"/strings/"$GADGET_LANG"/product
 
-echo "[+] Enabling gadgets"
-basename "$(find /sys/class/udc -type l)" > UDC
-udevadm settle -t 5 || true
 
-# Enable Serial
-echo "[+] Enabling getty service"
-systemctl enable getty@ttyGS0.service || true
-#systemctl start getty@ttyGS0.service || true
+function RNDIS_CONFIG_START () {
+    #### CONFIG - RNDIS, ACM, STORAGE ####
+    mkdir -p "$GADGET"/configs/c.1/strings/"$GADGET_LANG" || exit 1
+    echo "CDC RNDIS and CDC ACM and MASS_STORAGE" > "$GADGET"/configs/c.1/strings/"$GADGET_LANG"/configuration
+    #### --> Ethernet gadget
+    mkdir -p "$GADGET"/functions/rndis.usb0 || exit 1
+    echo "$HOST" > "$GADGET"/functions/rndis.usb0/host_addr
+    echo "$SELF0" > "$GADGET"/functions/rndis.usb0/dev_addr
+    echo "RNDIS" > "$GADGET"/functions/rndis.usb0/os_desc/interface.rndis/compatible_id
+    echo "5162001" > "$GADGET"/functions/rndis.usb0/os_desc/interface.rndis/sub_compatible_id
+    echo "0x80" > "$GADGET"/configs/c.1/bmAttributes # Bus Powered
+    echo "0xcd" > "$GADGET"/os_desc/b_vendor_code # Microsoft
+    echo "MSFT100" > "$GADGET"/os_desc/qw_sign # Microsoft
+    echo "1" > "$GADGET"/os_desc/use
 
-echo "[+] Gadget script done"
-exit 0
+    #### --> Serial gadget
+    mkdir -p "$GADGET"/functions/acm.usb0 || exit 1
+
+    #### --> Mass Storage gadget
+    mkdir -p "$GADGET"/functions/mass_storage.usb0 || exit 1
+    echo 1 > "$GADGET"/functions/mass_storage.usb0/stall
+    echo 0 > "$GADGET"/functions/mass_storage.usb0/lun.0/cdrom
+    echo 0 > "$GADGET"/functions/mass_storage.usb0/lun.0/ro
+    echo 0 > "$GADGET"/functions/mass_storage.usb0/lun.0/nofua
+    echo 1 > "$GADGET"/functions/mass_storage.usb0/lun.0/removable
+    echo "$SCSI_INQUIRY" > "$GADGET"/functions/mass_storage.usb0/lun.0/inquiry_string
+    echo "$MASS_STORAGE0" > "$GADGET"/functions/mass_storage.usb0/lun.0/file
+
+    ## Initialise the config
+    echo "$MAX_POWER" > "$GADGET"/configs/c.1/MaxPower
+    ln -s "$GADGET"/functions/rndis.usb0 "$GADGET"/configs/c.1
+    ln -s "$GADGET"/functions/acm.usb0 "$GADGET"/configs/c.1
+    ln -s "$GADGET"/functions/mass_storage.usb0 "$GADGET"/configs/c.1
+    ln -s "$GADGET"/configs/c.1 "$GADGET"/os_desc
+
+    basename "$(find /sys/class/udc -type l)" > "$GADGET"/UDC
+    udevadm settle -t 5 || true
+}
+
+
+function NCM_CONFIG_START () {
+    #### CONFIG - NCM, ACM, STORAGE ####
+    mkdir -p "$GADGET"/configs/c.1/strings/"$GADGET_LANG" || exit 1
+    echo "CDC NCM and CDC ACM and MASS_STORAGE" > "$GADGET"/configs/c.1/strings/"$GADGET_LANG"/configuration
+    #### --> Ethernet gadget
+    mkdir -p "$GADGET"/functions/ncm.usb0 || exit 1
+    echo "$HOST" > "$GADGET"/functions/ncm.usb0/host_addr
+    echo "$SELF1" > "$GADGET"/functions/ncm.usb0/dev_addr
+
+    #### --> Serial gadget
+    mkdir -p "$GADGET"/functions/acm.usb0 || exit 1
+
+    #### --> Mass Storage gadget
+    mkdir -p "$GADGET"/functions/mass_storage.usb0 || exit 1
+    echo 1 > "$GADGET"/functions/mass_storage.usb0/stall
+    echo 0 > "$GADGET"/functions/mass_storage.usb0/lun.0/cdrom
+    echo 0 > "$GADGET"/functions/mass_storage.usb0/lun.0/ro
+    echo 0 > "$GADGET"/functions/mass_storage.usb0/lun.0/nofua
+    echo 1 > "$GADGET"/functions/mass_storage.usb0/lun.0/removable
+    echo "$SCSI_INQUIRY" > "$GADGET"/functions/mass_storage.usb0/lun.0/inquiry_string
+    echo "$MASS_STORAGE0" > "$GADGET"/functions/mass_storage.usb0/lun.0/file
+
+    ## Initialise the config
+    echo "$MAX_POWER" > "$GADGET"/configs/c.1/MaxPower
+    ln -s "$GADGET"/functions/ncm.usb0 "$GADGET"/configs/c.1
+    ln -s "$GADGET"/functions/acm.usb0 "$GADGET"/configs/c.1
+    ln -s "$GADGET"/functions/mass_storage.usb0 "$GADGET"/configs/c.1
+    ln -s "$GADGET"/configs/c.1 "$GADGET"/os_desc
+
+    basename "$(find /sys/class/udc -type l)" > "$GADGET"/UDC
+    udevadm settle -t 5 || true
+}
+
+function CONFIG_STOP () {
+    # Takes "rndis" or "ncm" as argument
+    FUNC="$1"
+    if [[ "$(cat "$GADGET"/UDC)" != "" ]]; then
+        echo "" > "$GADGET"/UDC
+    fi
+    # Remove in reverse order...
+    rm -f "$GADGET"/os_desc/c.1
+    rm -f "$GADGET"/configs/c.1/mass_storage.usb0
+    rm -f "$GADGET"/configs/c.1/acm.usb0
+    rm -f "$GADGET"/configs/c.1/"$FUNC".usb0
+    rmdir "$GADGET"/functions/mass_storage.usb0 2>/dev/null
+    rmdir "$GADGET"/functions/acm.usb0 2>/dev/null
+    rmdir "$GADGET"/functions/"$FUNC".usb0 2>/dev/null
+    rmdir "$GADGET"/configs/c.1/strings/"$GADGET_LANG" 2>/dev/null
+    rmdir "$GADGET"/configs/c.1 2>/dev/null
+    rmdir "$GADGET"/strings/"$GADGET_LANG" 2>/dev/null
+    rmdir "$GADGET" 2>/dev/null
+}
+
+function gadget_start () {
+    if [[ "$OS" == "MacOS" ]]; then
+        echo "[+] Enabling MacOS composite gadget in $GADGET"
+        NCM_CONFIG_START
+    else
+        echo "[+] Enabling Linux/Win composite gadget in $GADGET"
+        RNDIS_CONFIG_START
+    fi
+
+    # Enable Serial
+    echo "[+] Starting getty service"
+    systemctl start getty@ttyGS0.service || true
+}
+
+function gadget_stop () {
+    echo "[+] Stopping getty service"
+    systemctl stop getty@ttyGS0.service || true
+
+    if [[ "$OS" == "MacOS" ]]; then
+        echo "[+] Disabling MacOS gadget..."
+        CONFIG_STOP ncm
+    else
+        echo "[+] Disabling Windows/Linux gadget..."
+        CONFIG_STOP rndis
+    fi
+}
+
+case "${COMMAND}" in
+    start)
+        gadget_start
+        exit 0;;
+    stop)
+        gadget_stop
+        exit 0;;
+    *)
+        echo "Usage: $0 start|stop"
+        exit 1;;
+esac
+

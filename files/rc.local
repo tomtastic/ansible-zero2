@@ -30,7 +30,7 @@ modprobe -r g_serial
 modprobe libcomposite
 
 # libcomposite configuration
-bash /home/pi/ansible-zero2/files/gadget.sh > /tmp/gadget.log 2>&1
+bash /home/pi/ansible-zero2/files/gadget.sh start > /tmp/gadget.log 2>&1
 
 # Start bridge interface by restarting systemd.networking
 service networking restart || true
