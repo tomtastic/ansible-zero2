@@ -133,7 +133,9 @@ function NCM_CONFIG_START () {
     udevadm settle -t 5 || true
 }
 
-function RNDIS_CONFIG_STOP () {
+function CONFIG_STOP () {
+    # Takes "rndis" or "ncm" as argument
+    FUNC="$1"
     if [[ "$(cat "$GADGET"/UDC)" != "" ]]; then
         echo "" > "$GADGET"/UDC
     fi
@@ -141,28 +143,10 @@ function RNDIS_CONFIG_STOP () {
     rm -f "$GADGET"/os_desc/c.1
     rm -f "$GADGET"/configs/c.1/mass_storage.usb0
     rm -f "$GADGET"/configs/c.1/acm.usb0
-    rm -f "$GADGET"/configs/c.1/rndis.usb0
+    rm -f "$GADGET"/configs/c.1/"$FUNC".usb0
     rmdir "$GADGET"/functions/mass_storage.usb0 2>/dev/null
     rmdir "$GADGET"/functions/acm.usb0 2>/dev/null
-    rmdir "$GADGET"/functions/rndis.usb0 2>/dev/null
-    rmdir "$GADGET"/configs/c.1/strings/"$GADGET_LANG" 2>/dev/null
-    rmdir "$GADGET"/configs/c.1 2>/dev/null
-    rmdir "$GADGET"/strings/"$GADGET_LANG" 2>/dev/null
-    rmdir "$GADGET" 2>/dev/null
-}
-
-function NCM_CONFIG_STOP () {
-    if [[ "$(cat "$GADGET"/UDC)" != "" ]]; then
-        echo "" > "$GADGET"/UDC
-    fi
-    # Remove in reverse order...
-    rm -f "$GADGET"/os_desc/c.1
-    rm -f "$GADGET"/configs/c.1/mass_storage.usb0
-    rm -f "$GADGET"/configs/c.1/acm.usb0
-    rm -f "$GADGET"/configs/c.1/ncm.usb0
-    rmdir "$GADGET"/functions/mass_storage.usb0 2>/dev/null
-    rmdir "$GADGET"/functions/acm.usb0 2>/dev/null
-    rmdir "$GADGET"/functions/ncm.usb0 2>/dev/null
+    rmdir "$GADGET"/functions/"$FUNC".usb0 2>/dev/null
     rmdir "$GADGET"/configs/c.1/strings/"$GADGET_LANG" 2>/dev/null
     rmdir "$GADGET"/configs/c.1 2>/dev/null
     rmdir "$GADGET"/strings/"$GADGET_LANG" 2>/dev/null
@@ -189,10 +173,10 @@ function gadget_stop () {
 
     if [[ "$OS" == "MacOS" ]]; then
         echo "[+] Disabling MacOS gadget..."
-        NCM_CONFIG_STOP
+        CONFIG_STOP ncm
     else
         echo "[+] Disabling Windows/Linux gadget..."
-        RNDIS_CONFIG_STOP
+        CONFIG_STOP rndis
     fi
 }
 
