@@ -18,19 +18,16 @@ SELF1="42:61:64:55:53:43" # "USB1"
 MASS_STORAGE0="/home/pi/mass_storage.lun0"
 SCSI_INQUIRY="Zero2 Mass Storage"
 
-### Create a sparse file for the mass storage gadget
-if [[ ! -f "$MASS_STORAGE0" ]]; then
-    # 8GB seems plenty?
-    dd if=/dev/zero of="$MASS_STORAGE0" bs=1M seek=8192 count=0
-    #echo <<EOFCAT | fdisk -u "$MASS_STORAGE0"
-    #EOFCAT
-    losetup -o 4096 /dev/loop0 "$MASS_STORAGE0"
-    mkdosfs -v /dev/loop0 -S 4096 -g 64/8 -n ZERO2USB
-    losetup -d /dev/loop0
-fi
+# Dont touch below here...
+function usage() {
+        echo "Usage: $0 start|stop"
+        echo "Must be run as root user"
+        exit 1
+}
 
-# Dont touch these...
-COMMAND="$1" # 'start' or 'stop'
+COMMAND="$1"
+[[ $COMMAND != "start" && $COMMAND != "stop" ]] && usage
+[[ "$(id -un)" != "root" ]] && usage
 OS=$(cat /tmp/os.fingerprint)
 CONFIGFS_HOME="/sys/kernel/config"
 GADGET="$CONFIGFS_HOME"/usb_gadget/"$GADGET_NAME"
@@ -59,6 +56,16 @@ echo "$SERIAL" > "$GADGET"/strings/"$GADGET_LANG"/serialnumber
 echo "$MANUFACTURER" > "$GADGET"/strings/"$GADGET_LANG"/manufacturer
 echo "$PRODUCT" > "$GADGET"/strings/"$GADGET_LANG"/product
 
+### Create a sparse file for the mass storage gadget
+if [[ ! -f "$MASS_STORAGE0" ]]; then
+    # 8GB seems plenty?
+    dd if=/dev/zero of="$MASS_STORAGE0" bs=1M seek=8192 count=0
+    #echo <<EOFCAT | fdisk -u "$MASS_STORAGE0"
+    #EOFCAT
+    losetup -o 4096 /dev/loop0 "$MASS_STORAGE0"
+    mkdosfs -v /dev/loop0 -S 4096 -g 64/8 -n ZERO2USB
+    losetup -d /dev/loop0
+fi
 
 function RNDIS_CONFIG_START () {
     #### CONFIG - RNDIS, ACM, STORAGE ####
@@ -183,7 +190,8 @@ function gadget_start () {
 
 function gadget_stop () {
     echo "[+] Stopping getty service"
-    systemctl stop getty@ttyGS0.service || true
+    timeout 5 systemctl stop getty@ttyGS0.service || true
+    killall -9 agetty
 
     if [[ "$OS" == "MacOS" ]]; then
         echo "[+] Disabling MacOS gadget..."
@@ -202,7 +210,6 @@ case "${COMMAND}" in
         gadget_stop
         exit 0;;
     *)
-        echo "Usage: $0 start|stop"
-        exit 1;;
+        usage
 esac
 
