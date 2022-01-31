@@ -28,7 +28,11 @@ function usage() {
 COMMAND="$1"
 [[ $COMMAND != "start" && $COMMAND != "stop" ]] && usage
 [[ "$(id -un)" != "root" ]] && usage
-OS=$(cat /tmp/os.fingerprint)
+OS=$(cat /tmp/os.fingerprint 2>/dev/null)
+if [[ "$OS" == "Unknown" ]] || [[ -z "$OS" ]]; then
+    echo "[!] No known USB fingerprint found, is USB socket connected?"
+    exit 0
+fi
 CONFIGFS_HOME="/sys/kernel/config"
 GADGET="$CONFIGFS_HOME"/usb_gadget/"$GADGET_NAME"
 GADGET_LANG="0x409" # English language strings
@@ -39,7 +43,7 @@ B_DEVICESUBCLASS="0x02" # For Windows compatible identifier of 'USB\COMPOSITE'
 B_DEVICEPROTOCOL="0x01" # For Windows compatible identifier of 'USB\COMPOSITE'
 ID_VENDOR="0x1d6b" # Linux Foundation
 ID_PRODUCT="0x0104" # Multifunction Composite Gadget
-SERIAL=$(awk -F": " '/^Serial/ {print $2}' /proc/cpuinfo)
+SERIAL=$(awk -F": " '/^Serial/ {print $2}' /proc/cpuinfo 2>/dev/null)
 MAX_POWER=250
 
 #### Create a composite gadget
@@ -164,9 +168,11 @@ function gadget_start () {
     if [[ "$OS" == "MacOS" ]]; then
         echo "[+] Enabling MacOS composite gadget in $GADGET"
         NCM_CONFIG_START
-    else
+    elif [[ "$OS" == "Other" ]]; then
         echo "[+] Enabling Linux/Win composite gadget in $GADGET"
         RNDIS_CONFIG_START
+    else
+        echo "[!] No known USB fingerprint found, is USB socket connected?"
     fi
 
     c=5
