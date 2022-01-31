@@ -2,6 +2,12 @@
 # Analyze USB Setup Request
 
 # ! Note that dwc2 module needs the following patch for this to work !
+if modinfo dwc2 2>/dev/null | grep -q '[debug_printk_setup_reqs]'; then
+    echo "[+] Patched dwc2 module detected"
+else
+    echo "[!] Patched dwc2 module not found, exitting"
+    exit 1
+fi
 
 # 80 means device to host (bmRequestType)
 # 06 means get descriptors (bRequest)
@@ -11,7 +17,7 @@
 
 LOGFILE=/tmp/usbreq.log
 dmesg | grep "USB DWC2 REQ 80 06 03" > $LOGFILE
-chmod 777 $LOGFILE
+chmod -f 777 $LOGFILE
 
 WLENGTHS=$(awk '$9!="0000" { print $10 }' $LOGFILE)
 TOTAL=0
