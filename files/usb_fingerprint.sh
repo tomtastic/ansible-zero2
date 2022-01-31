@@ -3,9 +3,9 @@
 
 # ! Note that dwc2 module needs the following patch for this to work !
 if modinfo dwc2 2>/dev/null | grep -q '[debug_printk_setup_reqs]'; then
-    echo "[+] Patched dwc2 module detected"
+    echo "[+] Patched dwc2 module detected" >&2
 else
-    echo "[!] Patched dwc2 module not found, exitting"
+    echo "[!] Patched dwc2 module not found, exitting" >&2
     exit 1
 fi
 
