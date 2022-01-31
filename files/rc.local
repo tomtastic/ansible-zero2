@@ -21,7 +21,7 @@ fi
 /usr/bin/tvservice -o
 
 # Parse USB requests in dmesg
-bash /home/pi/usb_fingerprint.sh > /tmp/os.fingerprint 2> /tmp/gadget.log
+bash /home/pi/ansible-zero2/files/usb_fingerprint.sh > /tmp/os.fingerprint 2> /tmp/gadget.log
 
 # Loading our dummy g_serial gadget (from /etc/modules) should have provided
 # a USB fingerprint of our connected host machine, now we can unload that
