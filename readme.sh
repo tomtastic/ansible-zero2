@@ -3,7 +3,7 @@
 ### Get some useful packages
 sudo apt update
 sudo apt install -y git bc bison flex libssl-dev libncurses-dev isc-dhcp-server dsniff tcpdump lsof screen nodejs bridge-utils libatlas-base-dev libopenjp2-7 libtiff5 patchelf python3-dbus ovmerge ifmetric libimagequant0 liblcms2-2 libwebpdemux2 libwebpmux3 mailcap mime-support python3-numpy python3-olefile python3-pil iptables
-service isc-dhcp-server disable
+sudo systemctl disable isc-dhcp-server
 
 ### Drop some config files
 sudo cp files/usb0.conf /etc/network/interfaces.d/usb0
@@ -24,13 +24,13 @@ printf "\ndenyinterfaces usb*\n" | sudo tee -a /etc/dhcpcd.conf
 
 ### Patch the dwc2 kernel module so we print host request fingerprints
 # Get the right kernel source for our current kernel...
-cd ~ || exit 1
+cd ~
 sudo wget https://raw.githubusercontent.com/bstalk/rpi-source/feature/experimental_python3/rpi-source -O /usr/bin/rpi-source && sudo chmod +x /usr/bin/rpi-source && /usr/bin/rpi-source -q --tag-update
 rpi-source
 # Apply the printk patch...
-cd ~/linux/drivers/usb/dwc2 || exit 1
+cd ~/linux/drivers/usb/dwc2
 patch -i ~/ansible-zero2/files/gadget_fingerprint_5.10.63-v7+.patch
-cd ~/linux || exit 1
+cd ~/linux
 
 # Apply the rate patch...?
 #cd ~/linux/drivers/usb/gadget/function || exit 1
