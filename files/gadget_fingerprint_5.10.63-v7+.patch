@@ -17,3 +17,14 @@
   	if (ctrl->wLength == 0) {
   		ep0->dir_in = 1;
   		hsotg->ep0_state = DWC2_EP0_STATUS_IN;
+
+--- core.c.orig	2022-05-06 19:49:50.735532757 +0100
++++ core.c	2022-05-06 19:49:30.245636088 +0100
+@@ -1190,6 +1190,6 @@
+ 	return retval;
+ }
+
+-MODULE_DESCRIPTION("DESIGNWARE HS OTG Core");
++MODULE_DESCRIPTION("DESIGNWARE HS OTG Core [debug_printk_setup_reqs]");
+ MODULE_AUTHOR("Synopsys, Inc.");
+ MODULE_LICENSE("Dual BSD/GPL");
