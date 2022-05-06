@@ -1,12 +1,12 @@
 [Unit]
-Description=Turns off Raspberry Pi PirateAudio LCD backlight on shutdown/reboot
+Description=Raspberry Pi PirateAudio LCD backlight
 #ConditionPathIsDirectory=/proc/device-tree/rpi_backlight
 DefaultDependencies=no
 Before=umount.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'echo 13 > /sys/class/gpio/export; echo 0 > /sys/class/gpio/gpio13/value; echo 13 > /sys/class/gpio/unexport'
+ExecStop=/bin/sh -c 'echo 13 > /sys/class/gpio/export; echo 0 > /sys/class/gpio/gpio13/value; echo 13 > /sys/class/gpio/unexport'
 
 [Install]
 WantedBy=reboot.target halt.target poweroff.target
