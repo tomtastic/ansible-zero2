@@ -2,8 +2,15 @@
 
 ### Get some useful packages
 sudo apt update
-sudo apt install -y git bc bison flex libssl-dev libncurses-dev isc-dhcp-server dsniff tcpdump lsof screen nodejs bridge-utils libatlas-base-dev libopenjp2-7 libtiff5 patchelf python3-dbus ovmerge ifmetric libimagequant0 liblcms2-2 libwebpdemux2 libwebpmux3 mailcap mime-support python3-numpy python3-olefile python3-pil iptables
+sudo apt install -y --no-install-recommends build-essential git xmltoman autoconf automake libtool libdaemon-dev libpopt-dev \
+ libconfig-dev libasound2-dev libpulse-dev avahi-daemon libavahi-client-dev libssl-dev libmbedtls-dev libsoxr-dev \
+ libsndfile1-dev libavahi-compat-libdnssd-dev libavahi-compat-libdnssd1 libasound2-dev libbluetooth-dev libdbus-1-dev \
+ libglib2.0-dev libsbc-dev git bc bison flex libssl-dev libncurses-dev isc-dhcp-server dsniff tcpdump lsof screen nodejs \
+ bridge-utils libatlas-base-dev libopenjp2-7 libtiff5 patchelf python3-dbus ovmerge ifmetric libimagequant0 liblcms2-2 \
+ libwebpdemux2 libwebpmux3 mailcap mime-support python3-numpy python3-olefile python3-pil iptables libopenaptx-dev \
+ libspandsp-dev libbluetooth-dev libsbc-dev
 sudo systemctl disable isc-dhcp-server
+sudo systemctl disable userconfig
 
 ### Drop some config files
 sudo cp files/usb0.conf /etc/network/interfaces.d/usb0
@@ -52,17 +59,33 @@ mkdir -p ~/src
 # Add this to /boot/config.txt to allow HDMI sink hotplugging
 hdmi_force_hotplug=1
 
-# Install build dependancies
-sudo apt install --no-install-recommends build-essential git xmltoman autoconf automake libtool libdaemon-dev libpopt-dev \
- libconfig-dev libasound2-dev libpulse-dev avahi-daemon libavahi-client-dev libssl-dev libmbedtls-dev libsoxr-dev \
- libsndfile1-dev libavahi-compat-libdnssd-dev libavahi-compat-libdnssd1
-
 # Install libalac
 cd ~/src; git clone https://github.com/mikebrady/alac.git
 cd alac && autoreconf -fi && ./configure && make && sudo make install
+
+# Install fdk-aac (for AAC support in bluez-alsa
+cd ~/src && git clone https://github.com/mstorsjo/fdk-aac.git && cd fdk-aac && autoreconf -i && ./configure && sudo make -j4 install 
 
 # Install shairport-sync
 cd ~/src; git clone https://github.com/mikebrady/shairport-sync.git
 cd shairport-sync && autoreconf -fi && ./configure --with-systemd --with-configfiles --with-apple-alac --with-soxr \
  --with-avahi --with-alsa --with-convolution --with-dns_sd --with-dbus-interface --with-mpris-interface --with-ssl=openssl \
  && make -j4 && sudo make install && sudo systemctl enable shairport-sync && sudo systemctl start shairport-sync
+ 
+# Enable bluetooth audio sink + A2DP volume control
+cat <<EOF | sudo tee /etc/bluetooth/audio.conf
+[General]
+Enable=Source,Sink,Media,Socket
+Class 0x20041C
+EOF
+
+# Add "--noplugin=sap" to the ExecStart line of /lib/systemd/system/bluetooth.service 
+
+# Install bluealsa (as its missing in Debian bullseye)
+cd ~/src && git clone https://github.com/Arkq/bluez-alsa.git && cd bluez-alsa && autoreconf -fi && mkdir build \
+ && cd build && ../configure --enable-aac --enable-aptx --with-libopenaptx --enable-msbc --enable-faststream --enable-manpages \
+ --enable-systemd && make -j4 && sudo make install && sudo systemctl enable bluealsa
+
+# Add "--a2dp-volume --aac-afterburner --a2dp-force-mono" to the ExecStart line of /lib/systemd/system/bluealsa.service
+sudo systemctl daemon-reload
+sudo systemctl start bluealsa
