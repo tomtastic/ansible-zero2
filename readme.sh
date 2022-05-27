@@ -86,6 +86,6 @@ cd ~/src && git clone https://github.com/Arkq/bluez-alsa.git && cd bluez-alsa &&
  && cd build && ../configure --enable-aac --enable-aptx --with-libopenaptx --enable-msbc --enable-faststream --enable-manpages \
  --enable-systemd && make -j4 && sudo make install && sudo systemctl enable bluealsa
 
-# Add "--a2dp-volume --aac-afterburner --a2dp-force-mono" to the ExecStart line of /lib/systemd/system/bluealsa.service
+# Add "--aac-afterburner --a2dp-force-mono" to the ExecStart line of /lib/systemd/system/bluealsa.service
 sudo systemctl daemon-reload
 sudo systemctl start bluealsa
