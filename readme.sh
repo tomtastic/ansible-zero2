@@ -8,7 +8,7 @@ sudo apt install -y --no-install-recommends build-essential git xmltoman autocon
  libglib2.0-dev libsbc-dev git bc bison flex libssl-dev libncurses-dev isc-dhcp-server dsniff tcpdump lsof screen nodejs \
  bridge-utils libatlas-base-dev libopenjp2-7 libtiff5 patchelf python3-dbus ovmerge ifmetric libimagequant0 liblcms2-2 \
  libwebpdemux2 libwebpmux3 mailcap mime-support python3-numpy python3-olefile python3-pil iptables libopenaptx-dev \
- libspandsp-dev libbluetooth-dev libsbc-dev
+ libspandsp-dev libbluetooth-dev libsbc-dev mpg123
 sudo systemctl disable isc-dhcp-server
 sudo systemctl disable userconfig
 
