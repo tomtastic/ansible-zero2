@@ -48,4 +48,7 @@ service isc-dhcp-server start
 iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
 route del -net 0.0.0.0
 
+# Play A2DP Bluetooth streams
+bluealsa-aplay 00:00:00:00:00:00 &
+
 exit 0
