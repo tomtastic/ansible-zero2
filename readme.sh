@@ -45,3 +45,24 @@ sudo cp -p ~/linux/drivers/usb/gadget/function/usb_f_ecm.ko /lib/modules/"$(unam
 sudo cp -p ~/linux/drivers/usb/gadget/function/usb_f_ncm.ko /lib/modules/"$(uname -r)"/kernel/drivers/usb/gadget/function/
 sudo cp -p ~/linux/drivers/usb/gadget/function/usb_f_rndis.ko /lib/modules/"$(uname -r)"/kernel/drivers/usb/gadget/function/
 
+
+# Setup an Airplay(1) server - shairport-sync
+mkdir -p ~/src
+
+# Add this to /boot/config.txt to allow HDMI sink hotplugging
+hdmi_force_hotplug=1
+
+# Install build dependancies
+sudo apt install --no-install-recommends build-essential git xmltoman autoconf automake libtool libdaemon-dev libpopt-dev \
+ libconfig-dev libasound2-dev libpulse-dev avahi-daemon libavahi-client-dev libssl-dev libmbedtls-dev libsoxr-dev \
+ libsndfile1-dev libavahi-compat-libdnssd-dev libavahi-compat-libdnssd1
+
+# Install libalac
+cd ~/src; git clone https://github.com/mikebrady/alac.git
+cd alac && autoreconf -fi && ./configure && make && sudo make install
+
+# Install shairport-sync
+cd ~/src; git clone https://github.com/mikebrady/shairport-sync.git
+cd shairport-sync && autoreconf -fi && ./configure --with-systemd --with-configfiles --with-apple-alac --with-soxr \
+ --with-avahi --with-alsa --with-convolution --with-dns_sd --with-dbus-interface --with-mpris-interface --with-ssl=openssl \
+ && make -j4 && sudo make install && sudo systemctl enable shairport-sync && sudo systemctl start shairport-sync
