@@ -51,4 +51,10 @@ route del -net 0.0.0.0
 # Play A2DP Bluetooth streams
 bluealsa-aplay 00:00:00:00:00:00 &
 
+# Switch off the PirateAudio Hat backlight (GPIO13)
+echo "13" > /sys/class/gpio/export
+echo "out" > /sys/class/gpio/gpio13/direction
+echo "0" > /sys/class/gpio/gpio13/value
+echo "13" > /sys/class/gpio/unexport
+
 exit 0
